@@ -1,14 +1,15 @@
 # bing-serp-scraper
 
-Paginate Bing search results and collect result links to CSV — up to a
-configurable max (default 2000), with a choice of three backends depending
+Paginate search results and collect result links to CSV — up to a
+configurable max (default 2000), with a choice of four backends depending
 on how much you want to spend:
 
-| Engine       | Cost                          | Reliability                                      |
-|--------------|--------------------------------|---------------------------------------------------|
-| `free`       | $0                              | Best-effort; works well for normal queries, but Bing suppresses `site:`-operator results for scripted clients (see caveats) |
-| `serpapi`    | Free tier (~100/mo), then paid  | High — SerpApi handles Bing's anti-bot measures    |
-| `dataforseo` | Paid, cheap at scale            | High, but capped at ~700 results per query (depth) |
+| Engine          | Cost                          | Reliability                                                        |
+|-----------------|--------------------------------|---------------------------------------------------------------------|
+| `free`          | $0                              | Best-effort; works well for normal queries, but Bing suppresses `site:`-operator results for scripted clients (see caveats) |
+| `serpapi`       | Free tier (~100/mo), then paid  | High — SerpApi handles Bing's anti-bot measures, but still limited to whatever Bing itself indexes |
+| `serpapi_index` | Free tier (~100/mo), then paid  | **Recommended for `site:` queries** — SerpApi's own web index, not Bing. Empirically returned 280 links for `site:claude.ai/share` vs Bing's 1 (see caveats) |
+| `dataforseo`    | Paid, cheap at scale            | High, but capped at ~700 results per query (depth) |
 
 ## Setup
 
@@ -23,8 +24,11 @@ cp .env.example .env   # only needed for serpapi / dataforseo engines
 # Free: direct Bing scraping, randomized 3-6s delay + UA rotation
 python main.py --query "site:claude.ai/share" --max-results 2000 --engine free
 
-# SerpApi (needs SERPAPI_KEY in .env or --api-key)
+# SerpApi, Bing engine (needs SERPAPI_KEY in .env or --api-key)
 python main.py --query "site:claude.ai/share" --max-results 2000 --engine serpapi
+
+# SerpApi, search_index engine — best option for site: queries, see caveats below
+python main.py --query "site:claude.ai/share" --max-results 2000 --engine serpapi_index
 
 # DataForSEO (needs DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD in .env)
 python main.py --query "site:claude.ai/share" --max-results 2000 --engine dataforseo
@@ -63,11 +67,19 @@ hit a depth cap) you still keep everything collected up to that point.
 - **Bing wraps organic result links in `bing.com/ck/a` tracking redirects**,
   not direct URLs — `free_scraper.py` decodes the base64-encoded `u=`
   param back to the real destination URL before writing it to CSV.
-- **Actual result depth**: for a narrow `site:` query, Bing (and by
-  extension SerpApi) often stops serving new results well before 2000, even
-  if the "About X results" estimate is higher. The `free`/`serpapi` engines
-  stop automatically once a page returns zero new links; check the printed
-  "Wrote N links" count rather than assuming you'll always get the max.
+- **Actual result depth on Bing itself is much thinner than the "About X
+  results" estimate claims, especially for `site:` queries** — for
+  `site:claude.ai/share`, Bing's own SERP (via `--engine free` or
+  `--engine serpapi`) reports ~570-590 estimated total results but only
+  ever actually serves **1** real result, confirmed across five different
+  pagination offsets (`first=1, 2, 10, 11, 21`) all returning the identical
+  single link. This isn't a script bug or a missed pagination trick — it's
+  genuinely all Bing has indexed for that query right now. `--engine
+  serpapi_index` sidesteps this entirely since it queries SerpApi's own web
+  index instead of Bing (280 real links for the same query). The
+  `free`/`serpapi`/`serpapi_index` engines all stop automatically once a
+  page returns zero new links; check the printed "Wrote N links" count
+  rather than assuming you'll always get the max.
 - **`dataforseo` depth cap**: DataForSEO's Bing organic `live/advanced`
   endpoint caps at 700 results per task and has no offset param to page
   further within one keyword — use `free` or `serpapi` if you need more

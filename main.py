@@ -22,7 +22,9 @@ def parse_args():
     parser.add_argument("--query", default="site:claude.ai/share", help="Search query")
     parser.add_argument("--max-results", type=int, default=2000)
     parser.add_argument(
-        "--engine", choices=["free", "serpapi", "dataforseo"], default="free"
+        "--engine",
+        choices=["free", "serpapi", "serpapi_index", "dataforseo"],
+        default="free",
     )
     parser.add_argument("--output", default="links.csv")
     parser.add_argument("--delay-min", type=float, default=3.0, help="free engine only")
@@ -41,6 +43,10 @@ def build_result_iter(args):
         )
     if args.engine == "serpapi":
         return serpapi_backend.iter_results(
+            args.query, max_results=args.max_results, api_key=args.api_key
+        )
+    if args.engine == "serpapi_index":
+        return serpapi_backend.iter_results_search_index(
             args.query, max_results=args.max_results, api_key=args.api_key
         )
     if args.engine == "dataforseo":
