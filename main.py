@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI for scraping Bing SERP links, paginated, via a choice of backends."""
+"""CLI for paginating SerpApi search results and collecting links to CSV."""
 
 import argparse
 import csv
@@ -14,43 +14,33 @@ except ImportError:
 
 from dotenv import load_dotenv
 
-from scraper import dataforseo_backend, free_scraper, serpapi_backend
+from scraper import serpapi_backend
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--query", default="site:claude.ai/share", help="Search query")
+    parser.add_argument("--query", required=True, help="Search query, e.g. site:example.com")
     parser.add_argument("--max-results", type=int, default=2000)
     parser.add_argument(
         "--engine",
-        choices=["free", "serpapi", "serpapi_index", "dataforseo"],
-        default="free",
+        choices=["bing", "search_index"],
+        default="search_index",
+        help="SerpApi engine to use (see README for the difference)",
     )
     parser.add_argument("--output", default="links.csv")
-    parser.add_argument("--delay-min", type=float, default=3.0, help="free engine only")
-    parser.add_argument("--delay-max", type=float, default=6.0, help="free engine only")
     parser.add_argument("--api-key", help="override SERPAPI_KEY env var")
     return parser.parse_args()
 
 
 def build_result_iter(args):
-    if args.engine == "free":
-        return free_scraper.iter_results(
-            args.query,
-            max_results=args.max_results,
-            delay_min=args.delay_min,
-            delay_max=args.delay_max,
-        )
-    if args.engine == "serpapi":
+    if args.engine == "bing":
         return serpapi_backend.iter_results(
             args.query, max_results=args.max_results, api_key=args.api_key
         )
-    if args.engine == "serpapi_index":
+    if args.engine == "search_index":
         return serpapi_backend.iter_results_search_index(
             args.query, max_results=args.max_results, api_key=args.api_key
         )
-    if args.engine == "dataforseo":
-        return dataforseo_backend.iter_results(args.query, max_results=args.max_results)
     raise ValueError(f"Unknown engine: {args.engine}")
 
 

@@ -1,17 +1,13 @@
 """SerpApi backends (https://serpapi.com/): two distinct engines under one
-SERPAPI_KEY, useful for different things.
+SERPAPI_KEY, useful for different things. See README for when to pick which.
 
 - `iter_results` (engine=bing): paginates Bing itself through SerpApi's
   hosted scraper. Reliable (no CAPTCHA), but subject to whatever Bing
-  itself actually indexes for the query — confirmed empirically that Bing
-  serves only a single result for a narrow `site:` query like
-  `site:claude.ai/share` regardless of pagination offset (tested first=1,
-  2, 10, 11, 21 — always the same 1 link).
+  itself actually indexes for the query. Paginates via `first=1,11,21,...`.
 - `iter_results_search_index` (engine=search_index): SerpApi's *own* crawled
-  web index, separate from Bing/Google. For `site:claude.ai/share` this
-  actually returned ~280 distinct links (vs Bing's 1) — use this one when
-  you need real breadth on a `site:` query. Paginates via `start=0,10,20,...`
-  (not `first=`) and stops when a page returns no new links.
+  web index, separate from Bing/Google — often has much better coverage for
+  narrow `site:` queries. Paginates via `start=0,10,20,...` and stops when
+  a page returns no new links or no further `serpapi_pagination.next`.
 """
 
 import os
